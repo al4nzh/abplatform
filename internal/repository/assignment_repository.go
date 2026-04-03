@@ -1,13 +1,17 @@
 package repository
+
 import (
 	"context"
-	"github.com/jackc/pgx/v5")
+	"errors"
+	"github.com/jackc/pgx/v5"
+)
 import "abplatform/internal/model"
 
-type AssignmentRepository struct{
+type AssignmentRepository struct {
 	conn *pgx.Conn
 }
-func NewAssignmentRepository(conn * pgx.Conn) *AssignmentRepository {
+
+func NewAssignmentRepository(conn *pgx.Conn) *AssignmentRepository {
 	return &AssignmentRepository{conn: conn}
 }
 func (r *AssignmentRepository) GetByExperimentAndUser(

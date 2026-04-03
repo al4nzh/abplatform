@@ -37,8 +37,8 @@ func main() {
 	experimentHandler := handler.NewExperimentHandler(experimentService)
 
 	assignmentRepo := repository.NewAssignmentRepository(conn)
-    assignmentService := service.NewAssignmentService(assignmentRepo)
-    assignmentHandler := handler.NewAssignmentHandler(assignmentService)
+	assignmentService := service.NewAssignmentService(assignmentRepo)
+	assignmentHandler := handler.NewAssignmentHandler(assignmentService)
 
 	r := gin.Default()
 

@@ -1,4 +1,5 @@
 package service
+
 import (
 	"context"
 	"crypto/sha1"
@@ -9,7 +10,7 @@ import (
 )
 
 type AssignmentService struct {
-	repo *repository.ExperimentRepository
+	repo *repository.AssignmentRepository
 }
 
 func NewAssignmentService(repo *repository.AssignmentRepository) *AssignmentService {
@@ -22,7 +23,7 @@ func (s *AssignmentService) AssignUser(
 	userID string,
 ) (*model.Assignment, error) {
 	existing, err := s.repo.GetByExperimentAndUser(ctx, experimentID, userID)
-	if err!= nil {
+	if err != nil {
 		return nil, err
 	}
 	if existing != nil {
@@ -36,7 +37,7 @@ func (s *AssignmentService) AssignUser(
 	return created, nil
 }
 
-fun c chooseVariant(experimentID int, userID string) string {
+func chooseVariant(experimentID int, userID string) string {
 	input := fmt.Sprintf("%d:%s", experimentID, userID)
 	hash := sha1.Sum([]byte(input))
 
