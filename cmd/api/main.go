@@ -3,77 +3,50 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
+	//"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
-	"github.com/segmentio/kafka-go"
 
 	"abplatform/internal/handler"
 	"abplatform/internal/repository"
 	"abplatform/internal/service"
+	"abplatform/internal/kafka"
 )
 
 func main() {
-	conn, err := pgx.Connect(context.Background(), "postgres://postgres:postgres@localhost:5433/ab_platform?sslmode=disable")
+	conn, err := pgx.Connect(context.Background(),
+		"postgres://postgres:postgres@localhost:5433/ab_platform?sslmode=disable")
 	if err != nil {
-		log.Fatal("failed to connect to postgres:", err)
+		log.Fatal(err)
 	}
 	defer conn.Close(context.Background())
 
-	if err := conn.Ping(context.Background()); err != nil {
-		log.Fatal("failed to ping postgres:", err)
-	}
-
-	writer := &kafka.Writer{
-		Addr:     kafka.TCP("localhost:29092"),
-		Topic:    "experiment-events",
-		Balancer: &kafka.LeastBytes{},
-	}
-	defer writer.Close()
-
-	experimentRepo := repository.NewExperimentRepository(conn)
-	experimentService := service.NewExperimentService(experimentRepo)
-	experimentHandler := handler.NewExperimentHandler(experimentService)
-
-	assignmentRepo := repository.NewAssignmentRepository(conn)
-	assignmentService := service.NewAssignmentService(assignmentRepo)
-	assignmentHandler := handler.NewAssignmentHandler(assignmentService)
-
 	r := gin.Default()
 
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "ok",
-			"db":     "connected",
-			"kafka":  "configured",
-		})
-	})
+	// repos
+	experimentRepo := repository.NewExperimentRepository(conn)
+	assignmentRepo := repository.NewAssignmentRepository(conn)
 
-	r.GET("/kafka-test", func(c *gin.Context) {
-		err := writer.WriteMessages(c.Request.Context(),
-			kafka.Message{
-				Key:   []byte("test"),
-				Value: []byte(`{"message":"hello kafka"}`),
-			},
-		)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
+	// services
+	experimentService := service.NewExperimentService(experimentRepo)
+	assignmentService := service.NewAssignmentService(assignmentRepo)
 
-		c.JSON(http.StatusOK, gin.H{
-			"status": "message sent",
-		})
-	})
+	// handlers
+	experimentHandler := handler.NewExperimentHandler(experimentService)
+	assignmentHandler := handler.NewAssignmentHandler(assignmentService)
+	resultsHandler := handler.NewResultsHandler(conn)
 
+	// kafka
+	producer := kafka.NewProducer("localhost:29092")
+	eventHandler := handler.NewEventHandler(producer)
+	
+	// routes
 	r.POST("/experiments", experimentHandler.CreateExperiment)
 	r.GET("/assign", assignmentHandler.Assign)
+	r.POST("/events", eventHandler.TrackEvent)
+	r.GET("/results", resultsHandler.GetResults)
 
 	log.Println("API running on :8080")
-	if err := r.Run(":8080"); err != nil {
-		log.Fatal(err)
-	}
+	r.Run(":8080")
 }
